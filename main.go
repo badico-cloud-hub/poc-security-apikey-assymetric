@@ -12,23 +12,7 @@ import (
 	"fmt"
 	// "io/ioutil"
 )
-func DecodeAllBlocks(pemBytes []byte) map[string]*pem.Block {
-	blocksMap := make(map[string]*pem.Block)
 
-	for {
-		block, rest := pem.Decode(pemBytes)
-		if block == nil {
-			break // Nenhum bloco PEM restante
-		}
-
-		// Armazena o bloco PEM decodificado no mapa
-		blocksMap[block.Type] = block
-
-		pemBytes = rest
-	}
-
-	return blocksMap
-}
 func sign(private_key_base64, content string) (string, error) {
 	// Decodificar a chave PEM de base64
 	pemBytes, err := base64.StdEncoding.DecodeString(private_key_base64)
@@ -53,10 +37,9 @@ func sign(private_key_base64, content string) (string, error) {
 		
 	}
 
-	// hash := sha256.Sum256([]byte(content))
-
+	hash := sha256.Sum256([]byte(content))
 	// Assinar a hash usando a chave privada carregada do PEM
-	sig, err := ecdsa.SignASN1(rand.Reader, privateKey, []byte(content))
+	sig, err := ecdsa.SignASN1(rand.Reader, privateKey, hash[:])
 	if err != nil {
 		fmt.Println("ERRO NA SIGN")
 		panic(err)
@@ -87,13 +70,15 @@ func verify(public_key_base64, content, signed string) bool {
 	if err != nil {
 		return false
 	}
-	return ecdsa.VerifyASN1(pk, []byte(content), bSign)
+
+	hash := sha256.Sum256([]byte(content))
+	return ecdsa.VerifyASN1(pk, hash[:], bSign)
 }
 
 // apikey key - horario
 func main() {
-  	private_key_base64 := "PAST HERE YOUR PRIVATE KEY BASE64"
-  	public_key_base64 := "PAST HERE YOUR PUBLIC KEY BASE64"
+  	private_key_base64 := "LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSUs3YTBxTHd5YzRWRDZMTE5qRWMyTUIrK2NpbTBBVkRobjNWWjBNbHRubTlvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFajBzc3dmNkxGN0EvRWZ3ZXhyZVpWZ292OE1kOFdCVU9mazJUKzlQcFpjV0ZOSWFTaXZyZAppc0hVSHRiaGxXN0Y0U3E0di9JcDE2ekFqTFYzU2dMeVRnPT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo="
+  	public_key_base64 := "LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUZrd0V3WUhLb1pJemowQ0FRWUlLb1pJemowREFRY0RRZ0FFajBzc3dmNkxGN0EvRWZ3ZXhyZVpWZ292OE1kOApXQlVPZmsyVCs5UHBaY1dGTklhU2l2cmRpc0hVSHRiaGxXN0Y0U3E0di9JcDE2ekFqTFYzU2dMeVRnPT0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0t"
 	content := "CONTEUDO ALEATORIO"
 	signed, err := sign(private_key_base64, content)
 	if err != nil {
@@ -101,12 +86,9 @@ func main() {
 		return
   	}
 
-  	fmt.Printf("%v", signed)
+  	// fmt.Printf("%v", signed)
 	// message = bearertoken + ":" + request-timestamp + ":" + bodyString.Base64
-	if verify(public_key_base64, content, signed) {
-		fmt.Println("verificado")
-		return
-	}
+
 
 	fmt.Println("não verificado")
 
